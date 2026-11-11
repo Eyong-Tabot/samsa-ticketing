@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Samsa Movie Night</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body class="bg-black text-white min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-[#0A192F] shadow-lg">
+    <div class="container mx-auto px-4 py-4">
+      <h1 class="text-3xl font-bold">
+        <span class="text-white">Samsa</span>
+        <span class="text-amber-400">Movie Night</span>
+      </h1>
+      <p class="text-gray-400 text-sm mt-1">Ticketing is alive</p>
+    </div>
+  </header>
+
+  <!-- Main content -->
+  <main class="container mx-auto px-4 py-8">
+    <h2 class="text-2xl font-bold mb-6">Now Showing</h2>
+    <div id="moviesList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <p class="text-gray-400 col-span-full">Loading...</p>
+    </div>
+  </main>
+
+  <script>
+    async function loadMovies() {
+      const container = document.getElementById('moviesList');
+      try {
+        const res = await axios.get('/api/movies');
+        const movies = res.data;
+
+        if (movies.length === 0) {
+          container.innerHTML = `
+            <div class="col-span-full text-center py-12">
+              <p class="text-gray-400 text-lg mb-2">No movies yet</p>
+              <p class="text-gray-500 text-sm">
+                Add a movie in MongoDB Atlas and refresh this page.
+              </p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = movies.map(movie => `
+          <div class="bg-[#1F2937] rounded-xl overflow-hidden border border-gray-700">
+            ${movie.posterUrl
+              ? `<img src="${movie.posterUrl}" class="w-full h-64 object-cover" alt="${movie.title}">`
+              : `<div class="w-full h-64 bg-gray-800 flex items-center justify-center text-gray-500">No poster</div>`
+            }
+            <div class="p-4">
+              <h3 class="font-bold text-lg">${movie.title}</h3>
+              <p class="text-gray-400 text-sm mt-1">${movie.description || ''}</p>
+              ${movie.genre ? `<p class="text-amber-400 text-xs mt-2">${movie.genre}</p>` : ''}
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerHTML = `
+          <p class="text-red-400 col-span-full">
+            Could not load movies. Check the Render logs.
+          </p>
+        `;
+        console.error(err);
+      }
+    }
+
+    loadMovies();
+  </script>
+</body>
+</html>

@@ -7,8 +7,8 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 
-// Security & setup
-app.use(helmet());
+// Security & setup (Turned off CSP so Tailwind and Axios can load)
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static('public'));
@@ -32,8 +32,8 @@ const Movie = mongoose.model('Movie', movieSchema);
 
 const showtimeSchema = new mongoose.Schema({
   movieId: { type: mongoose.Schema.Types.ObjectId, ref: 'Movie' },
-  date: String, // e.g., "Friday, Nov 15"
-  time: String, // e.g., "7:00 PM"
+  date: String, 
+  time: String, 
   priceGHS: Number,
   totalSeats: Number,
   availableSeats: Number

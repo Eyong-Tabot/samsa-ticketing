@@ -41,9 +41,13 @@ const Booking = mongoose.model('Booking', bookingSchema);
 // --- ADMIN AUTH MIDDLEWARE ---
 const adminAuth = (req, res, next) => {
   const adminPassword = req.headers.authorization;
-  if (adminPassword === process.env.ADMIN_PASSWORD) {
+  const expectedPassword = process.env.ADMIN_PASSWORD || 'admin123'; // Fallback to admin123 if Render fails
+  
+  if (adminPassword === expectedPassword) {
     next();
   } else {
+    // THIS WILL PRINT EXACTLY WHAT WENT WRONG IN THE RENDER LOGS
+    console.log(`❌ AUTH FAILED. You typed: '${adminPassword}'. Server expected: '${expectedPassword}'`);
     res.status(401).json({ error: 'Unauthorized: Wrong password' });
   }
 };

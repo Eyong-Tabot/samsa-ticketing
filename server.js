@@ -92,14 +92,15 @@ app.post('/api/payments/initialize', async (req, res) => {
     const payload = {
       amount: totalAmount,
       currency: 'XAF',
-      payment_method: 'mobile_money', // Force le choix MoMo/OM
+      // payment_method: 'mobile_money',  <-- THIS WAS THE PROBLEM
+      // Remove the line above, or use 'mtn_momo' or 'orange_money'
       customer_phone: formattedPhone,
       customer_email: email,
       customer_name: name,
-      merchant_invoice_id: booking._id.toString(), // Référence unique interne
-      merchant_callback_url: `${req.headers.origin}/api/payments/webhook`, // Pour la confirmation serveur
-      merchant_return_url: `${req.headers.origin}/?booking=${booking._id}`, // Retour du client
-      idempotency_key: `samsa-${booking._id}` // Anti-doublon
+      merchant_invoice_id: booking._id.toString(),
+      merchant_callback_url: `${req.headers.origin}/api/payments/webhook`,
+      merchant_return_url: `${req.headers.origin}/?booking=${booking._id}`,
+      idempotency_key: `samsa-${booking._id}`
     };
 
     const response = await axios.post('https://camerpay.biz/api/payment/initiate', payload, {
@@ -115,7 +116,7 @@ app.post('/api/payments/initialize', async (req, res) => {
 
     res.json({ 
       success: true, 
-      redirect_url: response.data.pay_url, // L'URL vers laquelle rediriger
+      redirect_url: response.data.pay_url,
       bookingId: booking._id 
     });
 
@@ -146,7 +147,7 @@ app.get('/api/payments/verify/:bookingId', async (req, res) => {
     } else if (status === 'failed') {
       res.json({ status: 'failed' });
     } else {
-      res.json({ status: 'pending' }); // Le client n'a pas encore entré son code
+      res.json({ status: 'pending' });
     }
 
   } catch (err) {

@@ -12,10 +12,12 @@
   <!-- HEADER -->
   <header class="bg-[#0A192F] shadow-lg">
     <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-      <h1 onclick="window.location.hash = ''; location.reload()" class="text-3xl font-bold cursor-pointer">
+      <h1 onclick="switchView('customer')" class="text-3xl font-bold cursor-pointer">
         <span class="text-white">Samsa</span> <span class="text-amber-400">Movie Night</span>
       </h1>
-      <button onclick="window.location.hash = 'admin'" class="text-sm bg-gray-800 px-3 py-1 rounded border border-gray-600 hover:bg-gray-700">Admin Area</button>
+      <button onclick="switchView('admin')" class="text-sm bg-gray-800 px-3 py-1 rounded border border-gray-600 hover:bg-gray-700 transition">
+        Admin Area
+      </button>
     </div>
   </header>
 
@@ -31,7 +33,7 @@
       <h2 class="text-3xl font-bold text-amber-400 mb-6">Admin Dashboard</h2>
       
       <!-- Login Form -->
-      <div id="adminLogin" class="bg-[#1F2937] p-6 rounded-xl border border-gray-700">
+      <div id="adminLogin" class="bg-[#1F2937] p-6 rounded-xl border border-gray-700 hidden">
         <h3 class="text-xl font-bold mb-4">Enter Admin Password</h3>
         <input type="password" id="adminPassword" placeholder="Password" class="w-full mb-4 p-3 bg-gray-900 rounded border border-gray-600 text-white">
         <button onclick="loginAdmin()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-3 rounded-lg">Login</button>
@@ -39,7 +41,7 @@
 
       <!-- Admin Controls -->
       <div id="adminControls" class="hidden space-y-6">
-        <button onclick="logoutAdmin()" class="text-red-400 hover:text-red-300 text-sm">Logout</button>
+        <button onclick="logoutAdmin()" class="text-red-400 hover:text-red-300 text-sm mb-4">Logout</button>
 
         <!-- Add Movie Form -->
         <div class="bg-[#1F2937] p-6 rounded-xl border border-gray-700">
@@ -74,27 +76,81 @@
     </div>
   </div>
 
+  <!-- SEAT & CHECKOUT MODAL -->
+  <div id="seatModal" class="fixed inset-0 bg-black/90 hidden items-center justify-center p-4 z-50">
+    <div class="bg-[#1F2937] border border-gray-700 rounded-xl max-w-2xl w-full p-6 relative max-h-[95vh] overflow-y-auto">
+      <button onclick="closeModal('seatModal')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
+      
+      <h3 id="seatModalTitle" class="text-2xl font-bold mb-1">Select Seats</h3>
+      <p id="seatModalPrice" class="text-amber-400 mb-6"></p>
+
+      <div class="w-full h-2 bg-gray-600 rounded mb-8"></div>
+      <p class="text-center text-xs text-gray-400 mb-4">SCREEN</p>
+
+      <div id="seatGrid" class="grid grid-cols-10 gap-2 mb-8 justify-center"></div>
+
+      <!-- Customer Details Form -->
+      <div class="bg-gray-800 p-4 rounded-lg mb-4 border border-gray-600">
+        <h4 class="font-bold mb-2">Your Details</h4>
+        <input type="text" id="custName" placeholder="Full Name" class="w-full mb-2 p-2 bg-gray-900 rounded border border-gray-600 text-white">
+        <input type="email" id="custEmail" placeholder="Email Address" class="w-full mb-2 p-2 bg-gray-900 rounded border border-gray-600 text-white">
+        <input type="tel" id="custPhone" placeholder="MTN/Orange Number" class="w-full mb-2 p-2 bg-gray-900 rounded border border-gray-600 text-white">
+      </div>
+
+      <div class="flex justify-between items-center border-t border-gray-700 pt-4 mb-4">
+        <div>
+          <p class="text-gray-400 text-sm">Selected Seats:</p>
+          <p id="selectedSeatsText" class="font-bold text-lg">None</p>
+        </div>
+        <div class="text-right">
+          <p class="text-gray-400 text-sm">Total:</p>
+          <p id="totalPriceText" class="font-bold text-xl text-amber-400">0 XAF</p>
+        </div>
+      </div>
+      
+      <button id="payBtn" onclick="payWithCampay()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-3 rounded-lg transition">
+        Pay with Mobile Money
+      </button>
+    </div>
+  </div>
+
   <script>
     const API_URL = '/api';
     let adminPass = localStorage.getItem('samsaAdminPass');
     let currentShowtimeId = null;
     let currentPrice = 0;
     let selectedSeats = [];
+    let pollInterval = null;
 
-    // --- ROUTING LOGIC ---
-    window.addEventListener('load', () => {
-      if (window.location.hash === '#admin') {
+    // --- VIEW ROUTING LOGIC ---
+    function switchView(view) {
+      if (view === 'admin') {
+        window.location.hash = 'admin';
         document.getElementById('customerView').classList.add('hidden');
         document.getElementById('adminView').classList.remove('hidden');
+        
         if (adminPass) {
           document.getElementById('adminLogin').classList.add('hidden');
           document.getElementById('adminControls').classList.remove('hidden');
           loadAdminData();
+        } else {
+          document.getElementById('adminLogin').classList.remove('hidden');
+          document.getElementById('adminControls').classList.add('hidden');
         }
       } else {
+        window.location.hash = '';
         document.getElementById('adminView').classList.add('hidden');
         document.getElementById('customerView').classList.remove('hidden');
         loadMovies();
+      }
+    }
+
+    // Check on page load which view to show
+    window.addEventListener('load', () => {
+      if (window.location.hash === '#admin') {
+        switchView('admin');
+      } else {
+        switchView('customer');
       }
     });
 
@@ -104,14 +160,14 @@
       if (!pass) return alert('Enter password');
       adminPass = pass;
       localStorage.setItem('samsaAdminPass', adminPass);
-      document.getElementById('adminLogin').classList.add('hidden');
-      document.getElementById('adminControls').classList.remove('hidden');
-      loadAdminData();
+      document.getElementById('adminPassword').value = '';
+      switchView('admin'); // Re-run routing to show controls
     }
 
     function logoutAdmin() {
       localStorage.removeItem('samsaAdminPass');
-      window.location.reload();
+      adminPass = null;
+      switchView('admin');
     }
 
     async function loadAdminData() {
@@ -194,12 +250,103 @@
       } catch (err) { list.innerHTML = '<p class="text-red-400">Error loading showtimes.</p>'; }
     }
 
-    // Note: I've kept the Seat Selection and Payment UI out of this snippet to save space, 
-    // but the full version will be provided in the final code block.
-    // If you are testing Day 6, you can just use the Admin panel to add movies/showtimes!
+    async function openSeats(showtimeId, time, price) {
+      closeModal('showtimeModal');
+      currentShowtimeId = showtimeId;
+      currentPrice = price;
+      selectedSeats = [];
+      updateSeatUI();
+      document.getElementById('seatModalTitle').innerText = `Select Seats (${time})`;
+      document.getElementById('seatModalPrice').innerText = `${price} XAF per seat`;
+      const grid = document.getElementById('seatGrid');
+      grid.innerHTML = '<p class="text-gray-400 col-span-10 text-center">Loading seats...</p>';
+      openModal('seatModal');
+      try {
+        const res = await axios.get(`${API_URL}/showtimes/${showtimeId}/booked-seats`);
+        const bookedSeats = res.data;
+        let seatHtml = '';
+        const rows = ['A', 'B', 'C', 'D', 'E'];
+        rows.forEach(row => {
+          for (let i = 1; i <= 10; i++) {
+            const seatId = `${row}${i}`;
+            const isBooked = bookedSeats.includes(seatId);
+            seatHtml += `<div id="seat-${seatId}" onclick="toggleSeat('${seatId}', ${isBooked})" class="w-8 h-8 rounded-t-lg flex items-center justify-center text-xs font-bold cursor-pointer transition ${isBooked ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-500 hover:bg-gray-400 text-black'}">${seatId}</div>`;
+          }
+        });
+        grid.innerHTML = seatHtml;
+      } catch (err) { grid.innerHTML = '<p class="text-red-400 col-span-10">Error loading seats.</p>'; }
+    }
+
+    function toggleSeat(seatId, isBooked) {
+      if (isBooked) return;
+      const seatEl = document.getElementById(`seat-${seatId}`);
+      if (selectedSeats.includes(seatId)) {
+        selectedSeats = selectedSeats.filter(s => s !== seatId);
+        seatEl.className = "w-8 h-8 rounded-t-lg flex items-center justify-center text-xs font-bold cursor-pointer transition bg-gray-500 hover:bg-gray-400 text-black";
+      } else {
+        selectedSeats.push(seatId);
+        seatEl.className = "w-8 h-8 rounded-t-lg flex items-center justify-center text-xs font-bold cursor-pointer transition bg-amber-400 text-black";
+      }
+      updateSeatUI();
+    }
+
+    function updateSeatUI() {
+      document.getElementById('selectedSeatsText').innerText = selectedSeats.length > 0 ? selectedSeats.join(', ') : 'None';
+      document.getElementById('totalPriceText').innerText = `${selectedSeats.length * currentPrice} XAF`;
+    }
+
+    async function payWithCampay() {
+      const name = document.getElementById('custName').value;
+      const email = document.getElementById('custEmail').value;
+      const phone = document.getElementById('custPhone').value;
+
+      if (selectedSeats.length === 0) return alert('Please select at least one seat.');
+      if (!name || !email || !phone) return alert('Please fill in all your details.');
+
+      const btn = document.getElementById('payBtn');
+      btn.innerText = "Sending Prompt...";
+      btn.disabled = true;
+
+      try {
+        const res = await axios.post(`${API_URL}/payments/initialize`, {
+          showtimeId: currentShowtimeId, seats: selectedSeats, name: name, email: email, phone: phone
+        });
+        btn.innerText = "Check your phone (Enter PIN)";
+        startPolling(res.data.bookingId);
+      } catch (err) {
+        alert('Could not send prompt. Check the phone number and try again.');
+        btn.innerText = "Pay with Mobile Money";
+        btn.disabled = false;
+      }
+    }
+
+    function startPolling(bookingId) {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(async () => {
+        try {
+          const res = await axios.get(`${API_URL}/payments/verify/${bookingId}`);
+          if (res.data.status === 'success') {
+            clearInterval(pollInterval);
+            alert('🎉 Payment Successful! Your tickets are confirmed.');
+            closeModal('seatModal');
+            window.location.reload();
+          } else if (res.data.status === 'failed') {
+            clearInterval(pollInterval);
+            alert('❌ Payment failed or was cancelled.');
+            const btn = document.getElementById('payBtn');
+            btn.innerText = "Pay with Mobile Money";
+            btn.disabled = false;
+          }
+        } catch (err) { console.error("Polling error", err); }
+      }, 5000);
+    }
 
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); document.getElementById(id).classList.add('flex'); }
-    function closeModal(id) { document.getElementById(id).classList.add('hidden'); document.getElementById(id).classList.remove('flex'); }
+    function closeModal(id) { 
+      document.getElementById(id).classList.add('hidden'); 
+      document.getElementById(id).classList.remove('flex'); 
+      if (pollInterval) clearInterval(pollInterval);
+    }
   </script>
 </body>
 </html>

@@ -29,7 +29,7 @@
 
   <!-- ADMIN VIEW -->
   <main id="adminView" class="container mx-auto px-4 py-8 hidden">
-    <div class="max-w-2xl mx-auto">
+    <div class="max-w-4xl mx-auto">
       <h2 class="text-3xl font-bold text-amber-400 mb-6">Admin Dashboard</h2>
       
       <!-- Login Form -->
@@ -41,28 +41,47 @@
 
       <!-- Admin Controls -->
       <div id="adminControls" class="hidden space-y-6">
-        <button onclick="logoutAdmin()" class="text-red-400 hover:text-red-300 text-sm mb-4">Logout</button>
-
-        <!-- Add Movie Form -->
-        <div class="bg-[#1F2937] p-6 rounded-xl border border-gray-700">
-          <h3 class="text-xl font-bold mb-4">Add New Movie</h3>
-          <input type="text" id="mTitle" placeholder="Movie Title (e.g. Deadpool)" class="w-full mb-2 p-3 bg-gray-900 rounded border border-gray-600 text-white">
-          <input type="text" id="mPoster" placeholder="Poster URL (Optional)" class="w-full mb-2 p-3 bg-gray-900 rounded border border-gray-600 text-white">
-          <input type="text" id="mGenre" placeholder="Genre (e.g. Action)" class="w-full mb-4 p-3 bg-gray-900 rounded border border-gray-600 text-white">
-          <button onclick="addMovie()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-lg">Save Movie</button>
+        <div class="flex justify-between items-center">
+          <div class="space-x-2">
+            <button onclick="showAdminTab('forms')" id="tabFormsBtn" class="bg-gray-800 px-4 py-2 rounded border border-amber-400 text-amber-400">Manage Movies</button>
+            <button onclick="showAdminTab('bookings')" id="tabBookingsBtn" class="bg-gray-800 px-4 py-2 rounded border border-gray-600 text-gray-300">View Bookings</button>
+          </div>
+          <button onclick="logoutAdmin()" class="text-red-400 hover:text-red-300 text-sm">Logout</button>
         </div>
 
-        <!-- Add Showtime Form -->
-        <div class="bg-[#1F2937] p-6 rounded-xl border border-gray-700">
-          <h3 class="text-xl font-bold mb-4">Add Showtime</h3>
-          <select id="sMovieId" class="w-full mb-2 p-3 bg-gray-900 rounded border border-gray-600 text-white">
-            <option value="">Select a Movie</option>
-          </select>
-          <input type="text" id="sDate" placeholder="Date (e.g. Friday, Nov 15)" class="w-full mb-2 p-3 bg-gray-900 rounded border border-gray-600 text-white">
-          <input type="text" id="sTime" placeholder="Time (e.g. 7:00 PM)" class="w-full mb-2 p-3 bg-gray-900 rounded border border-gray-600 text-white">
-          <input type="number" id="sPrice" placeholder="Price (XAF, max 25 for testing)" class="w-full mb-4 p-3 bg-gray-900 rounded border border-gray-600 text-white">
-          <button onclick="addShowtime()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 rounded-lg">Save Showtime</button>
+        <!-- TAB 1: FORMS (Add Movie/Showtime) -->
+        <div id="adminForms" class="space-y-6">
+          <div class="bg-[#1F2937] p-6 rounded-xl border border-gray-700">
+            <h3 class="text-xl font-bold mb-4">Add New Movie</h3>
+            <input type="text" id="mTitle" placeholder="Movie Title (e.g. Deadpool)" class="w-full mb-2 p-3 bg-gray-900 rounded border border-gray-600 text-white">
+            <input type="text" id="mPoster" placeholder="Poster URL (Optional)" class="w-full mb-2 p-3 bg-gray-900 rounded border border-gray-600 text-white">
+            <input type="text" id="mGenre" placeholder="Genre (e.g. Action)" class="w-full mb-4 p-3 bg-gray-900 rounded border border-gray-600 text-white">
+            <button onclick="addMovie()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-lg">Save Movie</button>
+          </div>
+
+          <div class="bg-[#1F2937] p-6 rounded-xl border border-gray-700">
+            <h3 class="text-xl font-bold mb-4">Add Showtime</h3>
+            <select id="sMovieId" class="w-full mb-2 p-3 bg-gray-900 rounded border border-gray-600 text-white">
+              <option value="">Select a Movie</option>
+            </select>
+            <input type="text" id="sDate" placeholder="Date (e.g. Friday, Nov 15)" class="w-full mb-2 p-3 bg-gray-900 rounded border border-gray-600 text-white">
+            <input type="text" id="sTime" placeholder="Time (e.g. 7:00 PM)" class="w-full mb-2 p-3 bg-gray-900 rounded border border-gray-600 text-white">
+            <input type="number" id="sPrice" placeholder="Price (XAF)" class="w-full mb-4 p-3 bg-gray-900 rounded border border-gray-600 text-white">
+            <button onclick="addShowtime()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 rounded-lg">Save Showtime</button>
+          </div>
         </div>
+
+        <!-- TAB 2: BOOKINGS LIST -->
+        <div id="adminBookings" class="hidden space-y-4">
+          <div class="flex justify-between items-center">
+            <h3 class="text-xl font-bold">Recent Bookings</h3>
+            <button onclick="loadBookings()" class="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded">Refresh</button>
+          </div>
+          <div id="bookingsList" class="space-y-3">
+            <!-- Bookings will be injected here -->
+          </div>
+        </div>
+
       </div>
     </div>
   </main>
@@ -80,37 +99,22 @@
   <div id="seatModal" class="fixed inset-0 bg-black/90 hidden items-center justify-center p-4 z-50">
     <div class="bg-[#1F2937] border border-gray-700 rounded-xl max-w-2xl w-full p-6 relative max-h-[95vh] overflow-y-auto">
       <button onclick="closeModal('seatModal')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
-      
       <h3 id="seatModalTitle" class="text-2xl font-bold mb-1">Select Seats</h3>
       <p id="seatModalPrice" class="text-amber-400 mb-6"></p>
-
       <div class="w-full h-2 bg-gray-600 rounded mb-8"></div>
       <p class="text-center text-xs text-gray-400 mb-4">SCREEN</p>
-
       <div id="seatGrid" class="grid grid-cols-10 gap-2 mb-8 justify-center"></div>
-
-      <!-- Customer Details Form -->
       <div class="bg-gray-800 p-4 rounded-lg mb-4 border border-gray-600">
         <h4 class="font-bold mb-2">Your Details</h4>
         <input type="text" id="custName" placeholder="Full Name" class="w-full mb-2 p-2 bg-gray-900 rounded border border-gray-600 text-white">
         <input type="email" id="custEmail" placeholder="Email Address" class="w-full mb-2 p-2 bg-gray-900 rounded border border-gray-600 text-white">
         <input type="tel" id="custPhone" placeholder="MTN/Orange Number" class="w-full mb-2 p-2 bg-gray-900 rounded border border-gray-600 text-white">
       </div>
-
       <div class="flex justify-between items-center border-t border-gray-700 pt-4 mb-4">
-        <div>
-          <p class="text-gray-400 text-sm">Selected Seats:</p>
-          <p id="selectedSeatsText" class="font-bold text-lg">None</p>
-        </div>
-        <div class="text-right">
-          <p class="text-gray-400 text-sm">Total:</p>
-          <p id="totalPriceText" class="font-bold text-xl text-amber-400">0 XAF</p>
-        </div>
+        <div><p class="text-gray-400 text-sm">Selected Seats:</p><p id="selectedSeatsText" class="font-bold text-lg">None</p></div>
+        <div class="text-right"><p class="text-gray-400 text-sm">Total:</p><p id="totalPriceText" class="font-bold text-xl text-amber-400">0 XAF</p></div>
       </div>
-      
-      <button id="payBtn" onclick="payWithCampay()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-3 rounded-lg transition">
-        Pay with Mobile Money
-      </button>
+      <button id="payBtn" onclick="payWithCampay()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-3 rounded-lg transition">Pay with Mobile Money</button>
     </div>
   </div>
 
@@ -122,16 +126,16 @@
     let selectedSeats = [];
     let pollInterval = null;
 
-    // --- VIEW ROUTING LOGIC ---
+    // --- ROUTING & VIEWS ---
     function switchView(view) {
       if (view === 'admin') {
         window.location.hash = 'admin';
         document.getElementById('customerView').classList.add('hidden');
         document.getElementById('adminView').classList.remove('hidden');
-        
         if (adminPass) {
           document.getElementById('adminLogin').classList.add('hidden');
           document.getElementById('adminControls').classList.remove('hidden');
+          showAdminTab('forms');
           loadAdminData();
         } else {
           document.getElementById('adminLogin').classList.remove('hidden');
@@ -145,23 +149,40 @@
       }
     }
 
-    // Check on page load which view to show
     window.addEventListener('load', () => {
-      if (window.location.hash === '#admin') {
-        switchView('admin');
-      } else {
-        switchView('customer');
-      }
+      if (window.location.hash === '#admin') switchView('admin');
+      else switchView('customer');
     });
 
-    // --- ADMIN LOGIC ---
+    // --- ADMIN TABS ---
+    function showAdminTab(tab) {
+      const formsTab = document.getElementById('adminForms');
+      const bookingsTab = document.getElementById('adminBookings');
+      const formsBtn = document.getElementById('tabFormsBtn');
+      const bookingsBtn = document.getElementById('tabBookingsBtn');
+
+      if (tab === 'forms') {
+        formsTab.classList.remove('hidden');
+        bookingsTab.classList.add('hidden');
+        formsBtn.className = "bg-gray-800 px-4 py-2 rounded border border-amber-400 text-amber-400";
+        bookingsBtn.className = "bg-gray-800 px-4 py-2 rounded border border-gray-600 text-gray-300";
+      } else {
+        formsTab.classList.add('hidden');
+        bookingsTab.classList.remove('hidden');
+        formsBtn.className = "bg-gray-800 px-4 py-2 rounded border border-gray-600 text-gray-300";
+        bookingsBtn.className = "bg-gray-800 px-4 py-2 rounded border border-amber-400 text-amber-400";
+        loadBookings();
+      }
+    }
+
+    // --- ADMIN LOGIN & LOGIC ---
     function loginAdmin() {
       const pass = document.getElementById('adminPassword').value;
       if (!pass) return alert('Enter password');
       adminPass = pass;
       localStorage.setItem('samsaAdminPass', adminPass);
       document.getElementById('adminPassword').value = '';
-      switchView('admin'); // Re-run routing to show controls
+      switchView('admin');
     }
 
     function logoutAdmin() {
@@ -179,17 +200,52 @@
       } catch (err) { console.log(err); }
     }
 
+    async function loadBookings() {
+      const container = document.getElementById('bookingsList');
+      container.innerHTML = '<p class="text-gray-400">Loading...</p>';
+      try {
+        const res = await axios.get(`${API_URL}/admin/bookings`, { headers: { Authorization: adminPass } });
+        const bookings = res.data;
+        if (bookings.length === 0) {
+          container.innerHTML = '<p class="text-gray-400">No bookings yet.</p>';
+          return;
+        }
+        
+        container.innerHTML = bookings.map(b => {
+          const movieTitle = b.showtimeId?.movieId?.title || 'Unknown Movie';
+          const statusColor = b.status === 'paid' ? 'text-green-400' : 'text-red-400';
+          const date = new Date(b.createdAt).toLocaleDateString();
+
+          return `
+            <div class="bg-[#1F2937] p-4 rounded-lg border border-gray-700">
+              <div class="flex justify-between items-start mb-2">
+                <div>
+                  <h4 class="font-bold text-lg">${movieTitle}</h4>
+                  <p class="text-sm text-gray-400">Booked on ${date}</p>
+                </div>
+                <span class="font-bold ${statusColor} uppercase">${b.status}</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-sm text-gray-300">
+                <p><strong>Name:</strong> ${b.customerName}</p>
+                <p><strong>Phone:</strong> ${b.customerPhone}</p>
+                <p><strong>Seats:</strong> ${b.seats.join(', ')}</p>
+                <p><strong>Amount:</strong> ${b.totalAmountXAF} XAF</p>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        container.innerHTML = '<p class="text-red-400">Error loading bookings. Check password.</p>';
+      }
+    }
+
     async function addMovie() {
       const title = document.getElementById('mTitle').value;
       const posterUrl = document.getElementById('mPoster').value;
       const genre = document.getElementById('mGenre').value;
       if (!title) return alert('Title is required');
-
       try {
-        await axios.post(`${API_URL}/admin/movies`, 
-          { title, posterUrl, genre },
-          { headers: { Authorization: adminPass } }
-        );
+        await axios.post(`${API_URL}/admin/movies`, { title, posterUrl, genre }, { headers: { Authorization: adminPass } });
         alert('Movie added successfully!');
         document.getElementById('mTitle').value = '';
         document.getElementById('mPoster').value = '';
@@ -204,12 +260,8 @@
       const time = document.getElementById('sTime').value;
       const priceGHS = document.getElementById('sPrice').value;
       if (!movieId || !date || !time || !priceGHS) return alert('Fill all fields');
-
       try {
-        await axios.post(`${API_URL}/admin/showtimes`, 
-          { movieId, date, time, priceGHS },
-          { headers: { Authorization: adminPass } }
-        );
+        await axios.post(`${API_URL}/admin/showtimes`, { movieId, date, time, priceGHS }, { headers: { Authorization: adminPass } });
         alert('Showtime added successfully!');
         document.getElementById('sDate').value = '';
         document.getElementById('sTime').value = '';
@@ -299,7 +351,6 @@
       const name = document.getElementById('custName').value;
       const email = document.getElementById('custEmail').value;
       const phone = document.getElementById('custPhone').value;
-
       if (selectedSeats.length === 0) return alert('Please select at least one seat.');
       if (!name || !email || !phone) return alert('Please fill in all your details.');
 

@@ -101,7 +101,34 @@
     let currentShowtimeId = null;
     let currentPrice = 0;
     let selectedSeats = [];
-    let pollInterval = null;
+
+    // --- CHECK IF RETURNING FROM PAYMENT ---
+    window.addEventListener('load', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const bookingId = urlParams.get('booking');
+      
+      if (bookingId) {
+        // We just returned from CamerPay!
+        try {
+          const res = await axios.get(`${API_URL}/payments/verify/${bookingId}`);
+          if (res.data.status === 'success') {
+            alert('🎉 Payment Successful! Your tickets are confirmed.');
+            window.history.replaceState({}, document.title, "/"); // Clear the URL
+            window.location.reload(); // Reload to show the seat as booked
+            return; // Stop execution here
+          } else {
+            alert('❌ Payment was not completed.');
+            window.history.replaceState({}, document.title, "/");
+          }
+        } catch (err) {
+          alert('Error verifying payment.');
+        }
+      }
+
+      // Normal load routing
+      if (window.location.hash === '#admin') switchView('admin');
+      else switchView('customer');
+    });
 
     function switchView(view) {
       if (view === 'admin') {
@@ -124,11 +151,6 @@
         loadMovies();
       }
     }
-
-    window.addEventListener('load', () => {
-      if (window.location.hash === '#admin') switchView('admin');
-      else switchView('customer');
-    });
 
     function showAdminTab(tab) {
       const formsTab = document.getElementById('adminForms');
@@ -339,7 +361,7 @@
           showtimeId: currentShowtimeId, seats: selectedSeats, name: name, email: email, phone: phone
         });
         
-        // CamerPay returns a pay_url. We redirect the browser to it.
+        // Redirect to CamerPay
         window.location.href = res.data.redirect_url;
 
       } catch (err) {
@@ -350,11 +372,7 @@
     }
 
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); document.getElementById(id).classList.add('flex'); }
-    function closeModal(id) { 
-      document.getElementById(id).classList.add('hidden'); 
-      document.getElementById(id).classList.remove('flex'); 
-      if (pollInterval) clearInterval(pollInterval);
-    }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); document.getElementById(id).classList.remove('flex'); }
   </script>
 </body>
 </html>

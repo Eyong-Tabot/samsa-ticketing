@@ -176,13 +176,23 @@
     }
 
     // --- ADMIN LOGIN & LOGIC ---
-    function loginAdmin() {
+    async function loginAdmin() {
       const pass = document.getElementById('adminPassword').value;
       if (!pass) return alert('Enter password');
-      adminPass = pass;
-      localStorage.setItem('samsaAdminPass', adminPass);
-      document.getElementById('adminPassword').value = '';
-      switchView('admin');
+      
+      // Test the password immediately by trying to fetch bookings
+      try {
+        await axios.get(`${API_URL}/admin/bookings`, { headers: { Authorization: pass } });
+        
+        // If it succeeds, save the password and go to dashboard
+        adminPass = pass;
+        localStorage.setItem('samsaAdminPass', adminPass);
+        document.getElementById('adminPassword').value = '';
+        switchView('admin'); 
+      } catch (err) {
+        // If it fails, tell the user!
+        alert('Incorrect Password! Please check exactly what you put in Render.');
+      }
     }
 
     function logoutAdmin() {

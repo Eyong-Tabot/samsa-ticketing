@@ -8,9 +8,7 @@ const axios = require('axios');
 
 const app = express();
 
-// FIX: Trust the Render proxy for the rate limiter
 app.set('trust proxy', 1);
-
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
@@ -35,18 +33,23 @@ const Showtime = mongoose.model('Showtime', showtimeSchema);
 
 const bookingSchema = new mongoose.Schema({
   showtimeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Showtime' },
-  seats: [String],
-  customerName: String,
-  customerEmail: String,
-  customerPhone: String,
-  totalAmountXAF: Number,
-  status: { type: String, default: 'pending' }, 
-  paymentReference: String,
-  createdAt: { type: Date, default: Date.now }
+  seats: [String], customerName: String, customerEmail: String, customerPhone: String,
+  totalAmountXAF: Number, status: { type: String, default: 'pending' }, paymentReference: String, createdAt: { type: Date, default: Date.now }
 });
 const Booking = mongoose.model('Booking', bookingSchema);
 
-// --- ROUTES ---
+// --- ADMIN AUTH MIDDLEWARE ---
+// This checks if the password sent in the request matches your Render environment variable
+const adminAuth = (req, res, next) => {
+  const adminPassword = req.headers.authorization;
+  if (adminPassword === process.env.ADMIN_PASSWORD) {
+    next(); // Password is correct, allow access
+  } else {
+    res.status(401).json({ error: 'Unauthorized: Wrong password' });
+  }
+};
+
+// --- PUBLIC ROUTES ---
 app.get('/ping', (req, res) => res.send('pong'));
 
 app.get('/api/movies', async (req, res) => {
@@ -65,77 +68,56 @@ app.get('/api/showtimes/:id/booked-seats', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Initialize Campay Payment (USSD Push) - NOW USING DEMO URL
+// Payment Routes
 app.post('/api/payments/initialize', async (req, res) => {
   try {
     const { showtimeId, seats, email, name, phone } = req.body;
-    
     const showtime = await Showtime.findById(showtimeId);
     if (!showtime) return res.status(404).json({ error: 'Showtime not found' });
-
     const totalAmount = showtime.priceGHS * seats.length;
-    
-    const booking = new Booking({
-      showtimeId, seats, customerName: name, customerEmail: email, 
-      customerPhone: phone, totalAmountXAF: totalAmount
-    });
+    const booking = new Booking({ showtimeId, seats, customerName: name, customerEmail: email, customerPhone: phone, totalAmountXAF: totalAmount });
     await booking.save();
-
     const formattedPhone = phone.startsWith('237') ? phone : `237${phone.replace(/^0+/, '')}`;
-
-    // CHANGED TO DEMO.CAMPAY.NET
     const response = await axios.post('https://demo.campay.net/api/collect/', {
-      amount: totalAmount.toString(),
-      currency: 'XAF',
-      from: formattedPhone,
-      description: `Movie Tickets: ${seats.join(', ')}`,
-      external_reference: booking._id.toString()
-    }, {
-      headers: { 
-        'Authorization': `Token ${process.env.CAMPAY_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
+      amount: totalAmount.toString(), currency: 'XAF', from: formattedPhone,
+      description: `Movie Tickets: ${seats.join(', ')}`, external_reference: booking._id.toString()
+    }, { headers: { 'Authorization': `Token ${process.env.CAMPAY_TOKEN}`, 'Content-Type': 'application/json' } });
     booking.paymentReference = response.data.reference;
     await booking.save();
-
-    res.json({ 
-      success: true, 
-      message: 'USSD prompt sent to your phone. Please enter your PIN.',
-      bookingId: booking._id 
-    });
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).json({ error: 'Could not initiate Mobile Money payment. Check the phone number.' });
-  }
+    res.json({ success: true, bookingId: booking._id });
+  } catch (err) { res.status(500).json({ error: 'Payment failed' }); }
 });
 
-// Verify Payment - NOW USING DEMO URL
 app.get('/api/payments/verify/:bookingId', async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.bookingId);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
-
     if (booking.status === 'paid') return res.json({ status: 'success' });
+    const response = await axios.get(`https://demo.campay.net/api/transaction/${booking.paymentReference}/`, { headers: { 'Authorization': `Token ${process.env.CAMPAY_TOKEN}` } });
+    if (response.data.status === 'SUCCESSFUL') { booking.status = 'paid'; await booking.save(); res.json({ status: 'success' }); }
+    else if (response.data.status === 'FAILED') { res.json({ status: 'failed' }); }
+    else { res.json({ status: 'pending' }); }
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-    // CHANGED TO DEMO.CAMPAY.NET
-    const response = await axios.get(`https://demo.campay.net/api/transaction/${booking.paymentReference}/`, {
-      headers: { 'Authorization': `Token ${process.env.CAMPAY_TOKEN}` }
-    });
+// --- ADMIN ROUTES ---
+// Create a new movie
+app.post('/api/admin/movies', adminAuth, async (req, res) => {
+  try {
+    const newMovie = new Movie(req.body);
+    await newMovie.save();
+    res.json(newMovie);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-    if (response.data.status === 'SUCCESSFUL') {
-      booking.status = 'paid';
-      await booking.save();
-      res.json({ status: 'success' });
-    } else if (response.data.status === 'FAILED') {
-      res.json({ status: 'failed' });
-    } else {
-      res.json({ status: 'pending' });
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+// Create a new showtime
+app.post('/api/admin/showtimes', adminAuth, async (req, res) => {
+  try {
+    const { movieId, date, time, priceGHS } = req.body;
+    const newShowtime = new Showtime({ movieId, date, time, priceGHS, totalSeats: 50, availableSeats: 50 });
+    await newShowtime.save();
+    res.json(newShowtime);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('*', (req, res) => res.sendFile(__dirname + '/public/index.html'));

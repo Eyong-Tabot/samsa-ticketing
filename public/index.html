@@ -9,18 +9,15 @@
 </head>
 <body class="bg-black text-white min-h-screen">
 
-  <!-- Header -->
   <header class="bg-[#0A192F] shadow-lg">
     <div class="container mx-auto px-4 py-4">
       <h1 class="text-3xl font-bold">
         <span class="text-white">Samsa</span>
         <span class="text-amber-400">Movie Night</span>
       </h1>
-      <p class="text-gray-400 text-sm mt-1">Click a movie to see showtimes</p>
     </div>
   </header>
 
-  <!-- Main content -->
   <main class="container mx-auto px-4 py-8">
     <h2 class="text-2xl font-bold mb-6">Now Showing</h2>
     <div id="moviesList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -28,22 +25,56 @@
     </div>
   </main>
 
-  <!-- Modal (Hidden by default) -->
+  <!-- Modal 1: Showtimes -->
   <div id="showtimeModal" class="fixed inset-0 bg-black/90 hidden items-center justify-center p-4 z-50">
     <div class="bg-[#1F2937] border border-gray-700 rounded-xl max-w-md w-full p-6 relative">
-      <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
-      
+      <button onclick="closeModal('showtimeModal')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
       <h3 id="modalMovieTitle" class="text-2xl font-bold mb-4">Movie Title</h3>
       <h4 class="text-amber-400 font-semibold mb-2">Available Showtimes</h4>
+      <div id="modalShowtimesList" class="space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Seat Selection (NEW) -->
+  <div id="seatModal" class="fixed inset-0 bg-black/90 hidden items-center justify-center p-4 z-50">
+    <div class="bg-[#1F2937] border border-gray-700 rounded-xl max-w-2xl w-full p-6 relative max-h-[90vh] overflow-y-auto">
+      <button onclick="closeModal('seatModal')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
       
-      <div id="modalShowtimesList" class="space-y-3">
-        <!-- Showtimes go here -->
+      <h3 id="seatModalTitle" class="text-2xl font-bold mb-1">Select Seats</h3>
+      <p id="seatModalPrice" class="text-amber-400 mb-6">₵0.00 per seat</p>
+
+      <!-- Screen graphic -->
+      <div class="w-full h-2 bg-gray-600 rounded mb-8"></div>
+      <p class="text-center text-xs text-gray-400 mb-4">SCREEN</p>
+
+      <!-- Seat Grid -->
+      <div id="seatGrid" class="grid grid-cols-10 gap-2 mb-8 justify-center">
+        <!-- Seats injected here by JS -->
       </div>
+
+      <div class="flex justify-between items-center border-t border-gray-700 pt-4">
+        <div>
+          <p class="text-gray-400 text-sm">Selected Seats:</p>
+          <p id="selectedSeatsText" class="font-bold text-lg">None</p>
+        </div>
+        <div class="text-right">
+          <p class="text-gray-400 text-sm">Total:</p>
+          <p id="totalPriceText" class="font-bold text-xl text-amber-400">₵0.00</p>
+        </div>
+      </div>
+      
+      <button onclick="confirmBooking()" class="w-full mt-6 bg-amber-500 hover:bg-amber-400 text-black font-bold py-3 rounded-lg transition">
+        Reserve Seats
+      </button>
     </div>
   </div>
 
   <script>
-    // Load movies on page start
+    let currentShowtimeId = null;
+    let currentPrice = 0;
+    let selectedSeats = [];
+
+    // Load movies
     async function loadMovies() {
       const container = document.getElementById('moviesList');
       try {
@@ -51,41 +82,28 @@
         const movies = res.data;
 
         if (movies.length === 0) {
-          container.innerHTML = `
-            <div class="col-span-full text-center py-12">
-              <p class="text-gray-400 text-lg mb-2">No movies yet</p>
-              <p class="text-gray-500 text-sm">Add a movie in MongoDB Atlas and refresh.</p>
-            </div>
-          `;
+          container.innerHTML = `<div class="col-span-full text-center py-12"><p class="text-gray-400 text-lg mb-2">No movies yet</p></div>`;
           return;
         }
 
         container.innerHTML = movies.map(movie => `
           <div onclick="openShowtimes('${movie._id}', '${movie.title}')" class="bg-[#1F2937] rounded-xl overflow-hidden border border-gray-700 cursor-pointer hover:border-amber-400 transition">
-            ${movie.posterUrl
-              ? `<img src="${movie.posterUrl}" class="w-full h-64 object-cover" alt="${movie.title}">`
-              : `<div class="w-full h-64 bg-gray-800 flex items-center justify-center text-gray-500">No poster</div>`
-            }
+            ${movie.posterUrl ? `<img src="${movie.posterUrl}" class="w-full h-64 object-cover">` : `<div class="w-full h-64 bg-gray-800 flex items-center justify-center text-gray-500">No poster</div>`}
             <div class="p-4">
               <h3 class="font-bold text-lg">${movie.title}</h3>
               <p class="text-gray-400 text-sm mt-1">${movie.genre || ''}</p>
             </div>
           </div>
         `).join('');
-      } catch (err) {
-        container.innerHTML = `<p class="text-red-400 col-span-full">Could not load movies. Check Render logs.</p>`;
-      }
+      } catch (err) { container.innerHTML = `<p class="text-red-400 col-span-full">Error loading movies.</p>`; }
     }
 
-    // Open the pop-up and fetch showtimes
+    // Open Showtimes Modal
     async function openShowtimes(movieId, movieTitle) {
       document.getElementById('modalMovieTitle').innerText = movieTitle;
       const list = document.getElementById('modalShowtimesList');
       list.innerHTML = '<p class="text-gray-400">Loading...</p>';
-      
-      // Show the modal
-      document.getElementById('showtimeModal').classList.remove('hidden');
-      document.getElementById('showtimeModal').classList.add('flex');
+      openModal('showtimeModal');
 
       try {
         const res = await axios.get(`/api/movies/${movieId}/showtimes`);
@@ -97,7 +115,7 @@
         }
 
         list.innerHTML = showtimes.map(show => `
-          <div class="bg-gray-800 p-3 rounded-lg flex justify-between items-center border border-gray-600">
+          <div onclick="openSeats('${show._id}', '${show.time}', ${show.priceGHS})" class="bg-gray-800 p-3 rounded-lg flex justify-between items-center border border-gray-600 cursor-pointer hover:border-amber-400 transition">
             <div>
               <p class="font-bold">${show.date}</p>
               <p class="text-sm text-gray-300">${show.time}</p>
@@ -108,15 +126,105 @@
             </div>
           </div>
         `).join('');
+      } catch (err) { list.innerHTML = '<p class="text-red-400">Error loading showtimes.</p>'; }
+    }
+
+    // Open Seat Modal (NEW)
+    async function openSeats(showtimeId, time, price) {
+      closeModal('showtimeModal');
+      currentShowtimeId = showtimeId;
+      currentPrice = price;
+      selectedSeats = [];
+      updateSeatUI();
+
+      document.getElementById('seatModalTitle').innerText = `Select Seats (${time})`;
+      document.getElementById('seatModalPrice').innerText = `₵${price} per seat`;
+      
+      const grid = document.getElementById('seatGrid');
+      grid.innerHTML = '<p class="text-gray-400 col-span-10 text-center">Loading seats...</p>';
+      openModal('seatModal');
+
+      try {
+        // Fetch already booked seats
+        const res = await axios.get(`/api/showtimes/${showtimeId}/booked-seats`);
+        const bookedSeats = res.data;
+
+        // Generate seats A1 to E10 (5 rows, 10 columns)
+        let seatHtml = '';
+        const rows = ['A', 'B', 'C', 'D', 'E'];
+        
+        rows.forEach(row => {
+          for (let i = 1; i <= 10; i++) {
+            const seatId = `${row}${i}`;
+            const isBooked = bookedSeats.includes(seatId);
+            
+            seatHtml += `
+              <div 
+                id="seat-${seatId}"
+                onclick="toggleSeat('${seatId}', ${isBooked})"
+                class="w-8 h-8 rounded-t-lg flex items-center justify-center text-xs font-bold cursor-pointer transition
+                ${isBooked ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-500 hover:bg-gray-400 text-black'}"
+              >
+                ${seatId}
+              </div>
+            `;
+          }
+        });
+        grid.innerHTML = seatHtml;
+      } catch (err) { grid.innerHTML = '<p class="text-red-400 col-span-10 text-center">Error loading seats.</p>'; }
+    }
+
+    // Toggle seat selection (NEW)
+    function toggleSeat(seatId, isBooked) {
+      if (isBooked) return; // Can't click booked seats
+
+      const seatEl = document.getElementById(`seat-${seatId}`);
+      
+      if (selectedSeats.includes(seatId)) {
+        // Deselect
+        selectedSeats = selectedSeats.filter(s => s !== seatId);
+        seatEl.className = "w-8 h-8 rounded-t-lg flex items-center justify-center text-xs font-bold cursor-pointer transition bg-gray-500 hover:bg-gray-400 text-black";
+      } else {
+        // Select
+        selectedSeats.push(seatId);
+        seatEl.className = "w-8 h-8 rounded-t-lg flex items-center justify-center text-xs font-bold cursor-pointer transition bg-amber-400 text-black";
+      }
+      updateSeatUI();
+    }
+
+    // Update total price and text
+    function updateSeatUI() {
+      const text = selectedSeats.length > 0 ? selectedSeats.join(', ') : 'None';
+      document.getElementById('selectedSeatsText').innerText = text;
+      document.getElementById('totalPriceText').innerText = `₵${selectedSeats.length * currentPrice}`;
+    }
+
+    // Save the booking (NEW)
+    async function confirmBooking() {
+      if (selectedSeats.length === 0) return alert('Please select at least one seat.');
+      
+      try {
+        await axios.post('/api/bookings', {
+          showtimeId: currentShowtimeId,
+          seats: selectedSeats
+        });
+        alert(`Success! You have reserved: ${selectedSeats.join(', ')}. Next step: Payment!`);
+        closeModal('seatModal');
+        // Refresh the page to update "seats left" (we'll do this properly on Day 6)
+        window.location.reload(); 
       } catch (err) {
-        list.innerHTML = '<p class="text-red-400">Error loading showtimes.</p>';
+        alert('Failed to reserve seats. Please try again.');
       }
     }
 
-    // Close the pop-up
-    function closeModal() {
-      document.getElementById('showtimeModal').classList.add('hidden');
-      document.getElementById('showtimeModal').classList.remove('flex');
+    // Helpers to show/hide modals
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+      document.getElementById(id).classList.add('flex');
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+      document.getElementById(id).classList.remove('flex');
     }
 
     loadMovies();

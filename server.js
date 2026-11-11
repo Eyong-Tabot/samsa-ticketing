@@ -39,11 +39,10 @@ const bookingSchema = new mongoose.Schema({
 const Booking = mongoose.model('Booking', bookingSchema);
 
 // --- ADMIN AUTH MIDDLEWARE ---
-// This checks if the password sent in the request matches your Render environment variable
 const adminAuth = (req, res, next) => {
   const adminPassword = req.headers.authorization;
   if (adminPassword === process.env.ADMIN_PASSWORD) {
-    next(); // Password is correct, allow access
+    next();
   } else {
     res.status(401).json({ error: 'Unauthorized: Wrong password' });
   }
@@ -101,7 +100,6 @@ app.get('/api/payments/verify/:bookingId', async (req, res) => {
 });
 
 // --- ADMIN ROUTES ---
-// Create a new movie
 app.post('/api/admin/movies', adminAuth, async (req, res) => {
   try {
     const newMovie = new Movie(req.body);
@@ -110,13 +108,25 @@ app.post('/api/admin/movies', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Create a new showtime
 app.post('/api/admin/showtimes', adminAuth, async (req, res) => {
   try {
     const { movieId, date, time, priceGHS } = req.body;
     const newShowtime = new Showtime({ movieId, date, time, priceGHS, totalSeats: 50, availableSeats: 50 });
     await newShowtime.save();
     res.json(newShowtime);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// NEW: View Bookings
+app.get('/api/admin/bookings', adminAuth, async (req, res) => {
+  try {
+    const bookings = await Booking.find()
+      .populate({
+        path: 'showtimeId',
+        populate: { path: 'movieId', select: 'title' }
+      })
+      .sort({ createdAt: -1 });
+    res.json(bookings);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

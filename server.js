@@ -8,6 +8,9 @@ const axios = require('axios');
 
 const app = express();
 
+// FIX: Trust the Render proxy for the rate limiter
+app.set('trust proxy', 1);
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));

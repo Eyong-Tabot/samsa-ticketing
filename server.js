@@ -65,7 +65,7 @@ app.get('/api/showtimes/:id/booked-seats', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// NEW: Initialize Campay Payment (USSD Push)
+// Initialize Campay Payment (USSD Push) - NOW USING DEMO URL
 app.post('/api/payments/initialize', async (req, res) => {
   try {
     const { showtimeId, seats, email, name, phone } = req.body;
@@ -75,18 +75,16 @@ app.post('/api/payments/initialize', async (req, res) => {
 
     const totalAmount = showtime.priceGHS * seats.length;
     
-    // 1. Save booking to database as 'pending'
     const booking = new Booking({
       showtimeId, seats, customerName: name, customerEmail: email, 
       customerPhone: phone, totalAmountXAF: totalAmount
     });
     await booking.save();
 
-    // Campay requires phone numbers to start with 237
     const formattedPhone = phone.startsWith('237') ? phone : `237${phone.replace(/^0+/, '')}`;
 
-    // 2. Ask Campay to push the USSD prompt to the user's phone
-    const response = await axios.post('https://campay.net/api/collect/', {
+    // CHANGED TO DEMO.CAMPAY.NET
+    const response = await axios.post('https://demo.campay.net/api/collect/', {
       amount: totalAmount.toString(),
       currency: 'XAF',
       from: formattedPhone,
@@ -99,11 +97,9 @@ app.post('/api/payments/initialize', async (req, res) => {
       }
     });
 
-    // 3. Save Campay's reference
     booking.paymentReference = response.data.reference;
     await booking.save();
 
-    // 4. Tell the frontend the prompt was sent
     res.json({ 
       success: true, 
       message: 'USSD prompt sent to your phone. Please enter your PIN.',
@@ -115,7 +111,7 @@ app.post('/api/payments/initialize', async (req, res) => {
   }
 });
 
-// NEW: Verify Payment (Frontend will poll this)
+// Verify Payment - NOW USING DEMO URL
 app.get('/api/payments/verify/:bookingId', async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.bookingId);
@@ -123,8 +119,8 @@ app.get('/api/payments/verify/:bookingId', async (req, res) => {
 
     if (booking.status === 'paid') return res.json({ status: 'success' });
 
-    // Ask Campay for the status of this transaction
-    const response = await axios.get(`https://campay.net/api/transaction/${booking.paymentReference}/`, {
+    // CHANGED TO DEMO.CAMPAY.NET
+    const response = await axios.get(`https://demo.campay.net/api/transaction/${booking.paymentReference}/`, {
       headers: { 'Authorization': `Token ${process.env.CAMPAY_TOKEN}` }
     });
 
